@@ -1,0 +1,46 @@
+name: Build GateHop.ipa
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build unsigned GateHop.app
+        run: |
+          xcodebuild \
+            -project GateHop.xcodeproj \
+            -scheme GateHop \
+            -configuration Release \
+            -sdk iphoneos \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CONFIGURATION_BUILD_DIR="$PWD/build/Release-iphoneos" \
+            build
+
+      - name: Package GateHop.ipa
+        run: |
+          mkdir -p build/Payload
+          cp -R build/Release-iphoneos/GateHop.app build/Payload/GateHop.app
+          cd build
+          zip -qry GateHop.ipa Payload
+
+      - name: Upload GateHop.ipa artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gatehop-ipa
+          path: build/GateHop.ipa
+          if-no-files-found: error
